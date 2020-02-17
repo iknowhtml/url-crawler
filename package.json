@@ -1,0 +1,14 @@
+{
+  "name": "template-crawler",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "crawl": "node index"
+  },
+  "dependencies": {
+    "puppeteer": "^2.1.1"
+  }
+}
