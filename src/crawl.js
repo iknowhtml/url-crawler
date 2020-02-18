@@ -26,7 +26,7 @@ const visitedUrls = new Set([]);
 const urlsToVisit = [rootUrl];
 
 const unreachableUrls = [];
-const urlRegex = /https:\/\/(www.)*user1st\.com(\/[0-9a-zA-Z-]*\/?)$/;
+const urlRegex = /^https:\/\/(www.)*grandpeaks\.com\/([0-9a-zA-Z-]*\/?)*$/;
 
 const crawl = async () => {
   console.log('crawling...');
