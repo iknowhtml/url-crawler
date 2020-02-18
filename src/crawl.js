@@ -1,8 +1,8 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer';
 
-process.on('exit', (options, exitCode) => {
-  const visitedUrlsArray = [...visitedUrls];
+process.on('exit', () => {
+  const visitedUrlsArray = [...visitedUrls].sort();
   const visitedUrlsObject = { visitedUrls: visitedUrlsArray };
   fs.writeFileSync(
     'visitedUrls.json',
@@ -20,24 +20,23 @@ process.on('exit', (options, exitCode) => {
   }
 });
 
-const [, , rootUrl = 'https://www.user1st.com/', depth = 1] = process.argv;
+const [, , rootUrl = 'https://www.user1st.com/'] = process.argv;
 
 const visitedUrls = new Set([]);
 const urlsToVisit = [rootUrl];
 
 const unreachableUrls = [];
-const urlRegex = /https\:\/\/(www.)*user1st\.com(\/[0-9a-zA-Z\-]*\/?)*$/;
+const urlRegex = /https:\/\/(www.)*user1st\.com(\/[0-9a-zA-Z-]*\/?)$/;
 
 const crawl = async () => {
   console.log('crawling...');
+  const browser = await puppeteer.launch();
   while (urlsToVisit.length > 0) {
     const url = urlsToVisit.shift();
     if (url === rootUrl || !visitedUrls.has(url)) {
       console.log(url);
       visitedUrls.add(url);
-      let browser;
       try {
-        browser = await puppeteer.launch();
         const page = await browser.newPage();
         await page.goto(url);
         const hrefs = await page.evaluate(() => {
@@ -52,11 +51,10 @@ const crawl = async () => {
       } catch (error) {
         console.error(error);
         unreachableUrls.push(url);
-      } finally {
-        await browser.close();
       }
     }
   }
+  await browser.close();
   console.log('crawling complete!');
 };
 
