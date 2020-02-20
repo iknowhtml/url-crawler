@@ -1,8 +1,26 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer';
 
+const [, , client] = process.argv;
+
+const currentDirectory = process.cwd();
+
+const clientDirectory = `${currentDirectory}/data/${client}`;
+
+if (!fs.existsSync(clientDirectory)) {
+  throw Error(
+    'Please run crawl script first or input the correct client name.'
+  );
+}
+
+const screenshotsDirectory = `${clientDirectory}/screenshots`;
+
+if (!fs.existsSync(screenshotsDirectory)) {
+  fs.mkdirSync(screenshotsDirectory);
+}
+
 const { urlsToScreenshot } = JSON.parse(
-  fs.readFileSync('./data/urlsToScreenshot.json')
+  fs.readFileSync(`${clientDirectory}/urlsToScreenshot.json`)
 );
 
 const screenshot = async () => {
@@ -15,9 +33,13 @@ const screenshot = async () => {
       await page.setViewport({ width: 1920, height: 1080 });
       await page.goto(url);
       console.log(`taking screenshot of ${url}...`);
-      const path = `./data/screenshots/${url.replace(/\//g, '-')}.png`;
+      const path = `${screenshotsDirectory}/${url
+        .replace('https://', '')
+        .replace(/\//g, '%')}.png`;
+      console.log(path);
       await page.screenshot({
         path,
+        fullPage: true,
       });
       console.log(`screenshot of ${url} complete.`);
     } catch (e) {
