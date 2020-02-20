@@ -6,7 +6,8 @@
   "license": "MIT",
   "private": false,
   "scripts": {
-    "crawl": "node index",
+    "crawl": "node src/crawl",
+    "screenshot": "node src/screenshot",
     "lint": "eslint --fix ."
   },
   "dependencies": {
