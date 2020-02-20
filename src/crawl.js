@@ -1,32 +1,23 @@
 import fs from 'fs';
 import puppeteer from 'puppeteer';
 
-process.on('exit', () => {
-  const visitedUrlsArray = [...visitedUrls].sort();
-  const visitedUrlsObject = { visitedUrls: visitedUrlsArray };
-  fs.writeFileSync(
-    'visitedUrls.json',
-    JSON.stringify(visitedUrlsObject),
-    'utf8'
-  );
+const [, , rootUrl] = process.argv;
 
-  if (unreachableUrls.length > 0) {
-    const unreachableUrlsObject = { unreachableUrls };
-    fs.writeFileSync(
-      'unreachableUrls.json',
-      JSON.stringify(unreachableUrlsObject),
-      'utf8'
-    );
-  }
-});
+if (rootUrl === undefined) {
+  throw Error('Please pass in a url.');
+}
 
-const [, , rootUrl = 'https://www.user1st.com/'] = process.argv;
+const visitedUrls = new Set();
+const urlsToVisit = [
+  rootUrl.includes('https://www.') ? rootUrl : `https://www.${rootUrl}`,
+];
 
-const visitedUrls = new Set([]);
-const urlsToVisit = [rootUrl];
+const [rootDomain] = rootUrl.split('/');
 
-const unreachableUrls = [];
-const urlRegex = /^https:\/\/(www.)*grandpeaks\.com\/([0-9a-zA-Z-]*\/?)*$/;
+const unreachableUrls = new Set();
+const urlRegex = new RegExp(
+  `^https://(www\\.)?${rootDomain}(/[0-9a-zA-Z-_]*/?)*$`
+);
 
 const crawl = async () => {
   console.log('crawling...');
@@ -43,6 +34,7 @@ const crawl = async () => {
           const links = [...document.querySelectorAll('a[href]')];
           return links.map(({ href }) => href);
         });
+        await page.close();
         hrefs.forEach(href => {
           if (!visitedUrls.has(href) && urlRegex.test(href)) {
             urlsToVisit.push(href);
@@ -50,12 +42,55 @@ const crawl = async () => {
         });
       } catch (error) {
         console.error(error);
-        unreachableUrls.push(url);
+        unreachableUrls.add(url);
       }
     }
   }
   await browser.close();
   console.log('crawling complete!');
 };
+
+process.on('exit', () => {
+  const currentDirectory = process.cwd();
+
+  const dataDirectory = `${currentDirectory}/data`;
+
+  if (!fs.existsSync(dataDirectory)) {
+    fs.mkdirSync(dataDirectory);
+  }
+
+  const [client] = rootDomain.split('.');
+
+  const clientDirectory = `${dataDirectory}/${client}`;
+
+  if (!fs.existsSync(clientDirectory)) {
+    fs.mkdirSync(clientDirectory);
+  }
+
+  if (visitedUrls.size > 0) {
+    const visitedUrlsObject = { visitedUrls: [...visitedUrls].sort() };
+    fs.writeFileSync(
+      `${clientDirectory}/visitedUrls.json`,
+      JSON.stringify(visitedUrlsObject),
+      'utf8'
+    );
+    fs.writeFileSync(
+      `${clientDirectory}/urlsToScreenshot.json`,
+      JSON.stringify(visitedUrlsObject),
+      'utf8'
+    );
+  }
+
+  if (unreachableUrls.size > 0) {
+    const unreachableUrlsObject = {
+      unreachableUrls: [...unreachableUrls].sort(),
+    };
+    fs.writeFileSync(
+      `${clientDirectory}/unreachableUrls.json`,
+      JSON.stringify(unreachableUrlsObject),
+      'utf8'
+    );
+  }
+});
 
 crawl();
