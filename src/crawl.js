@@ -1,5 +1,8 @@
 import fs from 'fs';
-import puppeteer from 'puppeteer';
+import axios from 'axios';
+import cheerio from 'cheerio';
+
+axios.interceptors.response.use(({ data }) => data);
 
 const [, , rootUrl] = process.argv;
 
@@ -16,37 +19,31 @@ const [rootDomain] = rootUrl.split('/');
 
 const unreachableUrls = new Set();
 const urlRegex = new RegExp(
-  `^https://(www\\.)?${rootDomain}(/[0-9a-zA-Z-_]*/?)*$`
+  `^http(s)?://(www\\.)?${rootDomain}(/[0-9a-zA-Z-_?=]*/?)*$`
 );
 
 const crawl = async () => {
   console.log('crawling...');
-  const browser = await puppeteer.launch();
   while (urlsToVisit.length > 0) {
     const url = urlsToVisit.shift();
     if (url === rootUrl || !visitedUrls.has(url)) {
       console.log(url);
       visitedUrls.add(url);
       try {
-        const page = await browser.newPage();
-        await page.goto(url);
-        const hrefs = await page.evaluate(() => {
-          const links = [...document.querySelectorAll('a[href]')];
-          return links.map(({ href }) => href);
-        });
-        await page.close();
+        const html = await axios.get(url);
+        const $ = cheerio.load(html);
+        const hrefs = Array.from($('a[href]')).map(link => link.attribs.href);
         hrefs.forEach(href => {
           if (!visitedUrls.has(href) && urlRegex.test(href)) {
             urlsToVisit.push(href);
           }
         });
       } catch (error) {
-        console.error(error);
+        console.log(`unable to reach ${url}`);
         unreachableUrls.add(url);
       }
     }
   }
-  await browser.close();
   console.log('crawling complete!');
 };
 
