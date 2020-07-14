@@ -31,7 +31,7 @@ const screenshot = async () => {
     try {
       const page = await browser.newPage();
       await page.setViewport({ width: 1920, height: 1080 });
-      await page.goto(url);
+      await page.goto(url, { waitUntil: 'networkidle2' });
       console.log(`taking screenshot of ${url}...`);
       const path = `${screenshotsDirectory}/${url
         .replace('https://', '')
