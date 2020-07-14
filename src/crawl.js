@@ -2,31 +2,30 @@ import fs from 'fs';
 import axios from 'axios';
 import cheerio from 'cheerio';
 
+// configures axios to automatically destructure response
 axios.interceptors.response.use(({ data }) => data);
 
-const [, , rootUrl] = process.argv;
+const [, , rootDomain] = process.argv;
 
-if (rootUrl === undefined) {
+if (rootDomain === undefined) {
   throw Error('Please pass in a url.');
 }
 
+const urlPrefix = 'https?:\\/\\/(www\\.)?';
+const urlPath = '(\\/[0-9a-zA-Z-_?=]*)*';
+const absoluteUrlRegex = new RegExp(`^${urlPrefix}${rootDomain}${urlPath}$`);
+const relativeUrlRegex = new RegExp(`^${urlPath}$`);
+
 const visitedUrls = new Set();
-const urlsToVisit = [
-  rootUrl.includes('https://www.') ? rootUrl : `https://www.${rootUrl}`,
-];
-
-const [rootDomain] = rootUrl.split('/');
-
+const urlsToVisit = [`https://${rootDomain}`];
 const unreachableUrls = new Set();
-const urlRegex = new RegExp(
-  `^http(s)?://(www\\.)?${rootDomain}(/[0-9a-zA-Z-_?=]*/?)*$`
-);
 
 const crawl = async () => {
   console.log('crawling...');
   while (urlsToVisit.length > 0) {
     const url = urlsToVisit.shift();
-    if (url === rootUrl || !visitedUrls.has(url)) {
+
+    if (!visitedUrls.has(url)) {
       console.log(url);
       visitedUrls.add(url);
       try {
@@ -34,7 +33,12 @@ const crawl = async () => {
         const $ = cheerio.load(html);
         const hrefs = Array.from($('a[href]')).map(link => link.attribs.href);
         hrefs.forEach(href => {
-          if (!visitedUrls.has(href) && urlRegex.test(href)) {
+          //checks if href is a relative url
+          href = relativeUrlRegex.test(href)
+            ? `https://${rootDomain}${href}`
+            : href;
+
+          if (!visitedUrls.has(href) && absoluteUrlRegex.test(href)) {
             urlsToVisit.push(href);
           }
         });
@@ -65,7 +69,10 @@ process.on('exit', () => {
   }
 
   if (visitedUrls.size > 0) {
-    const visitedUrlsObject = { visitedUrls: [...visitedUrls].sort() };
+    const sortedUrls = [...visitedUrls].sort();
+    const visitedUrlsObject = { visitedUrls: sortedUrls };
+    const urlsToScreenshotObject = { urlsToScreenshot: sortedUrls };
+
     fs.writeFileSync(
       `${clientDirectory}/visitedUrls.json`,
       JSON.stringify(visitedUrlsObject),
@@ -73,7 +80,7 @@ process.on('exit', () => {
     );
     fs.writeFileSync(
       `${clientDirectory}/urlsToScreenshot.json`,
-      JSON.stringify(visitedUrlsObject),
+      JSON.stringify(urlsToScreenshotObject),
       'utf8'
     );
   }
